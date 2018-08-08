@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+    <script>
+        function writeResult(val){
+            console.log(val)
+            document.write("<p>"+val+"</p>")
+        }  
+        setTimeout(()=>{
+            writeResult("setTimeout1")
+        },0)
+        setTimeout(()=>{
+            writeResult("setTimeout2")
+        },0)
+        Promise.resolve().then(function() {
+            writeResult("Promise1")
+            setTimeout(()=>{
+                writeResult("setTimeout3")
+            },0)
+            
+        })
+       
+        Promise.resolve().then(function() {
+            writeResult("Promise2")
+        })
+        setTimeout(()=>{
+            writeResult("setTimeout4")
+        },0)
+  
+    </script>
+</body>
+</html>
