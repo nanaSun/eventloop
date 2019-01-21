@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+    <div id="grow">click me</div>
+    <div id="root">
+        <textarea id="textarea">
+            let a="bbb"
+            setTimeout(()=>{
+                console.log("aaa")
+            },0)
+            Promise.resolve().then(()=>{
+                console.log("bbb")
+            })
+            Promise.resolve().then(()=>{
+                console.log("ccc")
+            })
+            setTimeout(()=>{
+                console.log("ddd")
+            },0)
+            Promise.resolve().then(()=>{
+                console.log("eee")
+            })
+            setTimeout(()=>{
+                console.log("fff")
+            },0)
+            console.log("ggg")
+        </textarea>
+        <div id="run">运行</div>
+    </div>
+    <div id="callStack"></div>
+    <div id="callQueue"></div>
+    <!-- <script src="../node_modules/acorn/dist/acorn.js"></script> -->
+    <script src="../node_modules/esprima/dist/esprima.js"></script>
+    <script src="./escodegen.browser.js"></script>
+    <script>
+        let callStackArray=[]
+        // function screenRefresh(){
+        //     console.info(initQueue)
+        //     if(!callStackArray[initQueue]){
+        //         callStackArray[initQueue]=[]
+        //     }else if(callStackArray[initQueue].length>0){
+        //         initQueue++
+        //         callStackArray[initQueue]=[]
+        //     }
+        //     requestAnimationFrame(screenRefresh)
+        // }
+        // requestAnimationFrame(screenRefresh)
+
+        
+        function rebuild(func,index){
+            callStackArray.push({[index]:func})
+            console.log(callStackArray)
+        }
+        let textarea=document.getElementById("textarea")
+        let run=document.getElementById("run")
+        let callStack=document.getElementById("callStack")
+        let callQueue=document.getElementById("callQueue")
+        let emitNode=esprima.parse("rebuild(funcori,index)").body[0]
+        run.addEventListener("click",()=>{
+            let info=esprima.parse(textarea.value)
+            let info2=esprima.parse(textarea.value)
+            let array=[]
+            array.push(...info.body.map((i)=>{
+                try{
+                    i.expression.arguments[0].body.body.push(emitNode)
+                    console.log(i.expression.arguments[0].body.body)
+                }catch(e){}
+                return  escodegen.generate(i)
+            }))
+            array.forEach((func,index)=>{
+                let funcori=escodegen.generate(info2.body[index])
+                eval(func)
+            })
+        })
+        
+    </script>
+</body>
+</html>
