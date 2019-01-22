@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Document</title>
+    <style>
+        canvas{ width: 1000px; height: 1000px;}
+    </style>
 </head>
 <body>
     <div id="grow">click me</div>
@@ -35,27 +38,17 @@
     </div>
     <div id="callStack"></div>
     <div id="callQueue"></div>
+    <canvas id="canvas"></canvas>
     <!-- <script src="../node_modules/acorn/dist/acorn.js"></script> -->
     <script src="../node_modules/esprima/dist/esprima.js"></script>
     <script src="./escodegen.browser.js"></script>
     <script>
-        let callStackArray=[]
-        // function screenRefresh(){
-        //     console.info(initQueue)
-        //     if(!callStackArray[initQueue]){
-        //         callStackArray[initQueue]=[]
-        //     }else if(callStackArray[initQueue].length>0){
-        //         initQueue++
-        //         callStackArray[initQueue]=[]
-        //     }
-        //     requestAnimationFrame(screenRefresh)
-        // }
-        // requestAnimationFrame(screenRefresh)
-
-        
+        let callMicroQueueArray=[]
+        let callMacroQueueArray=[]
+        let currentQueue=callMacroQueueArray
+        let callMacroStack=[]
         function rebuild(func,index){
-            callStackArray.push({[index]:func})
-            console.log(callStackArray)
+            currentQueue.push({id:index,value:func})
         }
         let textarea=document.getElementById("textarea")
         let run=document.getElementById("run")
@@ -69,16 +62,150 @@
             array.push(...info.body.map((i)=>{
                 try{
                     i.expression.arguments[0].body.body.push(emitNode)
-                    console.log(i.expression.arguments[0].body.body)
                 }catch(e){}
                 return  escodegen.generate(i)
             }))
+            setTimeout(()=>{
+                currentQueue=callMacroQueueArray
+                console.info("callMacroQueueArray")
+            },0)
+            Promise.resolve().then(()=>{
+                currentQueue=callMicroQueueArray
+                console.info("callMicroQueueArray")
+            })
             array.forEach((func,index)=>{
                 let funcori=escodegen.generate(info2.body[index])
                 eval(func)
+                callMacroStack.push({id:index,value:funcori})
             })
+            setTimeout(()=>{
+                let index=0
+                callMacroQueueArray=callMacroQueueArray.map((c,index)=>{
+                    c.value=createRectWithText(400,index*100+100,c.value.slice(0,5)+"..."+c.value.slice(-20))
+                    return  c
+                })
+                callMicroQueueArray=callMicroQueueArray.map((c,index)=>{
+                    c.value=createRectWithText(700,index*100+100,c.value.slice(0,5)+"..."+c.value.slice(-20))
+                    return c
+                })
+                callMacroStack=callMacroStack.map((c,index)=>{
+                    c.value=createRectWithText(100,(8-index)*100+100,c.value.slice(0,5)+"..."+c.value.slice(-20))
+                    let micro=callMicroQueueArray.filter((m)=>c.id===m.id)
+                    let macro=callMacroQueueArray.filter((m)=>c.id===m.id)
+                    if(micro.length>0){
+                        console.log(micro)
+                        addToGlobal(micro[0].value)
+                    }
+                    if(macro.length>0){
+                        addToGlobal(macro[0].value)
+                    }
+                    return  c
+                })
+                callMacroStack.forEach(c=>{
+                    addToGlobal(c.value)
+                })
+            },0)
         })
+    </script>
+   
+    <script>
+        const dpr=2
+        const canvas=document.getElementById("canvas")
+        const context=canvas.getContext("2d")
+        const canvasWidth=1000*dpr
+        const canvasHeight=1000*dpr
+        canvas.width=canvasWidth
+        canvas.height=canvasHeight
         
     </script>
+     <script>
+         let globalData=[]
+         function drawImage(image){
+            let {img, orix, oriy, oriWidth,oriHeight, desx, desy,desWidth,desHeight}=image
+            context.drawImage(img, orix, oriy, oriWidth,oriHeight, desx, desy,desWidth,desHeight);
+         }
+         function drawRect(rect){
+            let {x, y, w, h,strokeStyle,fillColor}=rect
+            context.beginPath();
+            context.fillStyle=fillColor
+            context.rect(x, y, w, h)
+            context.stroke()
+            context.fill();
+            context.closePath()
+         }
+         function drawText(text){
+            let {align,baseline,x,y,string,color,font}=text
+            context.fillStyle=color
+            context.textAlign=align
+            context.font=font
+            context.textBaseline=baseline
+            context.fillText(string, x,  y)
+         }
+         function drawPath(paths){
+            let {strokeStyle,lineWidth,fillColor,pos}=paths
+            context.strokeStyle = strokeStyle;
+            context.lineWidth = lineWidth;
+            context.beginPath();
+            pos.forEach((p,index)=>{
+                if(index===0){
+                    context.moveTo (p.x, p.y);
+                }else{
+                    context.lineTo (p.x, p.y);
+                }
+            })
+            context.closePath()
+            context.stroke()
+            context.fill();
+         }
+         
+         function paint(){
+            globalData.forEach(d=>{
+                switch(d.type){
+                    case "image":
+                        drawImage(d)
+                        return
+                    case "text":
+                        drawText(d)
+                        return
+                    case "rect":
+                        drawRect(d)
+                        return
+                    case "path":
+                        drawPath(d)
+                        return
+                    default:
+                        return
+                    }
+                }
+            )
+        }
+         function addToGlobal(obj){
+            globalData.push(...obj)
+         }
+         function createRectWithText(x,y,text){
+            return [{
+                type:"rect",
+                x:x,
+                y:y,
+                w:300,
+                h:100,
+                fillColor:"red"
+            },{
+                type:"text",
+                color:"white",
+                align:"center",
+                baseline:"middle",
+                font:"24px 微软雅黑",
+                x:x+150,
+                y:y+50,
+                string:text
+            }]
+         }
+         function update(){
+            paint()
+            requestAnimationFrame(update)
+        }
+        update()
+     </script>
 </body>
 </html>
